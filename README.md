@@ -1,14 +1,17 @@
-# shelly-fronius-meter
+# sunspec-meter-bridge
 
-Macht die Leistungsmessung von [Shelly](https://www.shelly.com)-Geräten für Fronius-Wechselrichter
-sichtbar: Der Container emuliert pro konfiguriertem Gerät einen **Modbus-TCP-Zähler nach SunSpec
-(Model 213)**, wie ihn der Fronius Smart Meter TCP bereitstellt. Jedem Zähler werden ein oder drei
-Shelly-Kanäle zugeordnet. Im Wechselrichter (z. B. GEN24, Tauro, Verto) als Sekundärzähler
-eingebunden, erscheinen die Verbraucher anschließend in **Fronius Solar.web**.
+Macht die Leistungsmessung von [Shelly](https://www.shelly.com)-Geräten und
+[go-e](https://go-e.com)-Wallboxen für Fronius-Wechselrichter sichtbar: Der Container emuliert pro
+konfiguriertem Gerät einen **Modbus-TCP-Zähler nach SunSpec (Model 213)**, wie ihn der Fronius Smart
+Meter TCP bereitstellt. Jedem Zähler werden ein oder drei Kanäle zugeordnet. Im Wechselrichter
+(z. B. GEN24, Tauro, Verto) als Sekundärzähler eingebunden, erscheinen die Verbraucher anschließend in
+**Fronius Solar.web**.
 
 ```
-Shelly (HTTP/RPC) ──► shelly-fronius-meter ──► Modbus TCP :502 ──► Fronius-Wechselrichter ──► Solar.web
+Shelly / go-e (HTTP) ──► sunspec-meter-bridge ──► Modbus TCP :502 ──► Fronius-Wechselrichter ──► Solar.web
 ```
+
+> Früher `shelly-fronius-meter`. Das Image unter dem alten Namen wird nicht mehr aktualisiert.
 
 > ⚠️ Inoffizielles Community-Projekt – siehe [Haftungsausschluss](#haftungsausschluss).
 
@@ -16,6 +19,7 @@ Shelly (HTTP/RPC) ──► shelly-fronius-meter ──► Modbus TCP :502 ─�
 
 - Beliebig viele emulierte Zähler, je mit 1 Kanal (auf L1/L2/L3) oder 3 Kanälen (L1–L3)
 - Shelly Gen1 und Gen2+ (Plus/Pro/Mini), Relais mit Leistungsmessung und Energiemesser
+- go-eCharger V3/V4 (Gemini, HOME) über die lokale HTTP-API v2, ein- oder dreiphasig
 - Leistung, Spannung, Strom, Leistungsfaktor, Frequenz sowie Energiezähler Bezug/Einspeisung
 - Zählerstände laufen nie rückwärts (Shelly-Reset/-Tausch) und werden persistent gespeichert
 - Mehrere Zähler auf einem Port (Unterscheidung per Modbus-Adresse) oder auf eigenen Ports
@@ -25,8 +29,8 @@ Shelly (HTTP/RPC) ──► shelly-fronius-meter ──► Modbus TCP :502 ─�
 ## Schnellstart mit Docker Compose
 
 ```bash
-curl -O https://raw.githubusercontent.com/nilseckert/shelly-fronius-meter/main/compose.yaml
-curl -o config.yaml https://raw.githubusercontent.com/nilseckert/shelly-fronius-meter/main/config.example.yaml
+curl -O https://raw.githubusercontent.com/nilseckert/sunspec-meter-bridge/main/compose.yaml
+curl -o config.yaml https://raw.githubusercontent.com/nilseckert/sunspec-meter-bridge/main/config.example.yaml
 # config.yaml anpassen
 docker compose up -d
 docker compose logs -f
@@ -35,10 +39,10 @@ docker compose logs -f
 Siehe [compose.yaml](compose.yaml). Ohne Compose:
 
 ```bash
-docker run -d --name shelly-fronius-meter --restart unless-stopped \
+docker run -d --name sunspec-meter-bridge --restart unless-stopped \
   -p 502:502 -p 8080:8080 \
-  -v $PWD/config.yaml:/config/config.yaml:ro -v shelly-fronius-meter:/data \
-  ghcr.io/nilseckert/shelly-fronius-meter:latest
+  -v $PWD/config.yaml:/config/config.yaml:ro -v sunspec-meter-bridge:/data \
+  ghcr.io/nilseckert/sunspec-meter-bridge:latest
 ```
 
 ## Konfiguration
@@ -74,10 +78,10 @@ Vollständiges Beispiel: [config.example.yaml](config.example.yaml). Umgebungsva
 
 | Schlüssel  | Beschreibung                                                     |
 |------------|------------------------------------------------------------------|
-| `host`     | IP oder Hostname des Shellys (optional mit `:port`)              |
+| `host`     | IP oder Hostname des Geräts (optional mit `:port`)               |
 | `type`     | siehe Tabelle unten                                              |
 | `id`       | Kanal-/Komponenten-ID am Shelly (Default `0`)                    |
-| `em_phase` | nur bei `type: em`: `a`, `b` oder `c`                            |
+| `phase`    | Phase an der Quelle: `a`/`b`/`c`, `1`/`2`/`3` oder `L1`/`L2`/`L3`. Pflicht bei `em`, optional bei `goe` (`em_phase` geht weiterhin) |
 | `invert`   | Vorzeichen umkehren (Bezug ↔ Einspeisung)                        |
 
 | `type`        | Geräte (Beispiele)                         | Abfrage                                |
@@ -88,9 +92,34 @@ Vollständiges Beispiel: [config.example.yaml](config.example.yaml). Umgebungsva
 | `em`          | Pro 3EM (Profil Triphase)                  | `EM.GetStatus`, `EMData.GetStatus`     |
 | `gen1_relay`  | Shelly 1PM, 2.5, Plug (Gen1)               | `/status` → `meters[id]`               |
 | `gen1_emeter` | Shelly EM, 3EM (Gen1)                      | `/status` → `emeters[id]`              |
+| `goe`         | go-eCharger V3/V4 (Gemini, HOME)           | `/api/status?filter=nrg,eto`           |
 
-Positive Leistung bedeutet Verbrauch. Shellys mit aktivierter Authentifizierung werden derzeit nicht
+Positive Leistung bedeutet Verbrauch. Geräte mit aktivierter Authentifizierung werden derzeit nicht
 unterstützt.
+
+### go-e Wallboxen
+
+In der go-e App muss unter *Internet → Erweiterte Einstellungen* die **lokale HTTP-API v2**
+aktiviert sein. Zwei Varianten:
+
+```yaml
+# dreiphasig: L1–L3 einzeln (empfohlen)
+- name: Wallbox Carport
+  unit_id: 14
+  channels:
+    - { host: go-echarger_123456.local, type: goe, phase: 1 }
+    - { host: go-echarger_123456.local, type: goe, phase: 2 }
+    - { host: go-echarger_123456.local, type: goe, phase: 3 }
+
+# einphasig gemeldet: Summe aller Phasen auf L1
+- name: Wallbox Zaun
+  unit_id: 15
+  channels:
+    - { host: go-echarger_654321.local, type: goe }
+```
+
+Die Wallbox hat nur einen Gesamtzähler (`eto`). Bei drei Kanälen wird er zu je einem Drittel auf die
+Phasen verteilt, die Summe in Solar.web stimmt. Pro Abfrage wird die Wallbox nur einmal angefragt.
 
 ## Einrichtung im Fronius-Wechselrichter
 
@@ -124,7 +153,7 @@ Unterstützt werden die Funktionscodes 3 und 4 (Register lesen).
 
 ## Docker-Images
 
-Images werden per GitHub Actions nach `ghcr.io/nilseckert/shelly-fronius-meter` gebaut:
+Images werden per GitHub Actions nach `ghcr.io/nilseckert/sunspec-meter-bridge` gebaut:
 
 | Auslöser                | Tags                    |
 |-------------------------|-------------------------|
@@ -137,14 +166,14 @@ Images werden per GitHub Actions nach `ghcr.io/nilseckert/shelly-fronius-meter` 
 ```bash
 go test ./...
 go run . -config config.yaml
-docker build -t shelly-fronius-meter .
+docker build -t sunspec-meter-bridge .
 ```
 
 ## Haftungsausschluss
 
 Dieses Projekt ist ein privates, inoffizielles Open-Source-Projekt. Es steht in **keiner Verbindung**
-zur Fronius International GmbH oder zur Shelly Group (Allterco Robotics) und wird von diesen weder
-unterstützt noch geprüft. „Fronius“, „Solar.web“ und „Shelly“ sind Marken der jeweiligen Inhaber und
+zur Fronius International GmbH, zur Shelly Group (Allterco Robotics) oder zur go-e GmbH und wird von
+diesen weder unterstützt noch geprüft. „Fronius“, „Solar.web“, „Shelly“ und „go-e“ sind Marken der jeweiligen Inhaber und
 werden hier nur zur Beschreibung der Kompatibilität genannt.
 
 Die Software wird **ohne jede Gewährleistung** bereitgestellt (siehe [LICENSE](LICENSE)). Die Nutzung

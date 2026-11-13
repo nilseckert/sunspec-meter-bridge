@@ -1,4 +1,4 @@
-module github.com/nilseckert/shelly-fronius-meter
+module github.com/nilseckert/sunspec-meter-bridge
 
 go 1.26
 

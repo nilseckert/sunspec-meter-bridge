@@ -37,7 +37,7 @@ func main() {
 		level = slog.LevelDebug
 	}
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
-	slog.Info("shelly-fronius-meter", "version", version)
+	slog.Info("sunspec-meter-bridge", "version", version)
 
 	cfg, err := LoadConfig(*cfgPath)
 	if err != nil {

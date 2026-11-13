@@ -1,9 +1,9 @@
 # Vorlage: config.example.yaml nach config.yaml kopieren und anpassen, dann
 #   docker compose up -d
 services:
-  shelly-fronius-meter:
-    image: ghcr.io/nilseckert/shelly-fronius-meter:latest
-    container_name: shelly-fronius-meter
+  sunspec-meter-bridge:
+    image: ghcr.io/nilseckert/sunspec-meter-bridge:latest
+    container_name: sunspec-meter-bridge
     restart: unless-stopped
     ports:
       - "502:502"    # Modbus TCP – vom Fronius-Wechselrichter aus erreichbar machen

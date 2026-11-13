@@ -42,17 +42,39 @@ type DeviceConfig struct {
 
 type ChannelConfig struct {
 	Host string `yaml:"host"`
-	// switch | pm1 | em1 | em | gen1_relay | gen1_emeter
+	// switch | pm1 | em1 | em | gen1_relay | gen1_emeter | goe
 	Type string `yaml:"type"`
 	ID   int    `yaml:"id"`
-	// nur für type=em: a | b | c
+	// Phase der Quelle (a|b|c, 1|2|3 oder L1|L2|L3):
+	// Pflicht bei type=em, optional bei type=goe (ohne Angabe: Summe aller Phasen).
+	SourcePhase string `yaml:"phase"`
+	// Veralteter Alias für phase bei type=em.
 	EMPhase string `yaml:"em_phase"`
 	// Vorzeichen umdrehen (Bezug <-> Einspeisung)
 	Invert bool `yaml:"invert"`
+
+	// intern: 0..2, -1 = keine Phase angegeben
+	phaseIdx int
+	// intern: Anteil am Gesamtzähler, wenn die Quelle nur einen Zähler für alle Phasen hat (go-e)
+	energyShare float64
 }
 
 var validTypes = map[string]bool{
-	"switch": true, "pm1": true, "em1": true, "em": true, "gen1_relay": true, "gen1_emeter": true,
+	"switch": true, "pm1": true, "em1": true, "em": true, "gen1_relay": true, "gen1_emeter": true, "goe": true,
+}
+
+func parsePhase(s string) (int, bool) {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
+	case "":
+		return -1, true
+	case "A", "1", "L1":
+		return 0, true
+	case "B", "2", "L2":
+		return 1, true
+	case "C", "3", "L3":
+		return 2, true
+	}
+	return -1, false
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -142,11 +164,31 @@ func (c *Config) applyDefaults() error {
 			if !validTypes[ch.Type] {
 				return fmt.Errorf("device %q channel %d: unbekannter type %q", d.Name, j+1, ch.Type)
 			}
-			if ch.Type == "em" {
-				ch.EMPhase = strings.ToLower(ch.EMPhase)
-				if ch.EMPhase != "a" && ch.EMPhase != "b" && ch.EMPhase != "c" {
-					return fmt.Errorf("device %q channel %d: type em braucht em_phase a|b|c", d.Name, j+1)
-				}
+			if ch.SourcePhase == "" {
+				ch.SourcePhase = ch.EMPhase
+			}
+			idx, ok := parsePhase(ch.SourcePhase)
+			if !ok {
+				return fmt.Errorf("device %q channel %d: ungültige phase %q", d.Name, j+1, ch.SourcePhase)
+			}
+			ch.phaseIdx = idx
+			if ch.Type == "em" && idx < 0 {
+				return fmt.Errorf("device %q channel %d: type em braucht phase a|b|c", d.Name, j+1)
+			}
+		}
+
+		// go-e liefert nur einen Gesamtzähler; er wird gleichmäßig auf die
+		// Kanäle desselben Geräts verteilt, damit die Summe stimmt.
+		goeCount := map[string]int{}
+		for _, ch := range d.Channels {
+			ch.energyShare = 1
+			if ch.Type == "goe" {
+				goeCount[ch.Host]++
+			}
+		}
+		for _, ch := range d.Channels {
+			if n := goeCount[ch.Host]; ch.Type == "goe" && n > 1 {
+				ch.energyShare = 1 / float64(n)
 			}
 		}
 	}

@@ -119,7 +119,7 @@ func readChannel(ctx context.Context, f *fetcher, ch *ChannelConfig) (Reading, e
 		if err != nil {
 			return r, err
 		}
-		p := ch.EMPhase + "_"
+		p := string("abc"[ch.phaseIdx]) + "_"
 		r.Power, _ = num(s, p+"act_power")
 		r.Voltage, _ = num(s, p+"voltage")
 		r.Current, _ = num(s, p+"current")
@@ -156,7 +156,16 @@ func readChannel(ctx context.Context, f *fetcher, ch *ChannelConfig) (Reading, e
 		r.PF, _ = num(m, "pf")
 		r.ImportWh, _ = num(m, "total")
 		r.ExportWh, r.HasExport = num(m, "total_returned")
+
+	case "goe":
+		var err error
+		if r, err = readGoe(ctx, f, ch); err != nil {
+			return r, err
+		}
 	}
+
+	r.ImportWh *= ch.energyShare
+	r.ExportWh *= ch.energyShare
 
 	if ch.Invert {
 		r.Power = -r.Power
