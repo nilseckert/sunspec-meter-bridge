@@ -1,0 +1,44 @@
+# Vorlage für mehrere Zähler: Fronius-Wechselrichter akzeptieren pro IP-Adresse nur
+# einen virtuellen Zähler. Daher eine Instanz pro Zähler mit eigener LAN-IP (macvlan).
+#
+# Anpassen: parent (Netzwerkinterface des Hosts), subnet, gateway, ip_range und IPs.
+# Die IPs müssen außerhalb des DHCP-Bereichs liegen.
+# Hinweis: Der Docker-Host selbst erreicht macvlan-IPs nicht, das übrige LAN schon.
+# In VMs (Proxmox o. ä.) ggf. driver: ipvlan verwenden, falls macvlan blockiert wird.
+
+x-meter: &meter
+  image: ghcr.io/nilseckert/sunspec-meter-bridge:latest
+  restart: unless-stopped
+  environment:
+    TZ: Europe/Berlin
+    LOG_LEVEL: info
+
+services:
+  waermepumpe:
+    <<: *meter
+    container_name: smb-waermepumpe
+    volumes:
+      - ./config/waermepumpe.yaml:/config/config.yaml:ro   # je Datei genau ein Gerät
+      - ./data/waermepumpe:/data
+    networks:
+      lan: { ipv4_address: 192.168.178.41 }
+
+  wallbox:
+    <<: *meter
+    container_name: smb-wallbox
+    volumes:
+      - ./config/wallbox.yaml:/config/config.yaml:ro
+      - ./data/wallbox:/data
+    networks:
+      lan: { ipv4_address: 192.168.178.42 }
+
+networks:
+  lan:
+    driver: macvlan
+    driver_opts:
+      parent: eth0
+    ipam:
+      config:
+        - subnet: 192.168.178.0/24
+          gateway: 192.168.178.1
+          ip_range: 192.168.178.40/29

@@ -134,6 +134,15 @@ Phasen verteilt, die Summe in Solar.web stimmt. Pro Abfrage wird die Wallbox nur
 Die Bezeichnungen können je nach Wechselrichter und Firmware abweichen. Der Container sollte eine feste
 IP-Adresse haben.
 
+### Mehrere Zähler: eine IP pro Zähler
+
+Der Wechselrichter akzeptiert **pro IP-Adresse nur einen virtuellen Zähler**, auch wenn sich die
+Modbus-Adressen unterscheiden. Für mehrere Zähler läuft deshalb je eine Instanz mit eigener LAN-IP,
+z. B. per macvlan: siehe [compose.macvlan.yaml](compose.macvlan.yaml). Jede Instanz bekommt eine eigene
+Config mit genau einem Gerät und ein eigenes Datenverzeichnis. Als Port sind im Wechselrichter nur 502
+und 1502 wählbar. Die Modbus-Adressen 1–3 können am RTU-Bus des Wechselrichters bereits belegt sein;
+höhere Adressen (z. B. ab 11) vermeiden Konflikte.
+
 ## Betrieb
 
 - **Logs:** `LOG_LEVEL=debug` zeigt Modbus-Zugriffe und jede Shelly-Abfrage.
