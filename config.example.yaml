@@ -14,9 +14,9 @@ devices:
     unit_id: 1
     serial: "WP0000001"          # muss je Gerät eindeutig sein (Solar.web)
     channels:
-      - { host: 192.168.1.50, type: em, phase: a }
-      - { host: 192.168.1.50, type: em, phase: b }
-      - { host: 192.168.1.50, type: em, phase: c }
+      - { host: 192.168.1.50, type: shelly_em, phase: a }
+      - { host: 192.168.1.50, type: shelly_em, phase: b }
+      - { host: 192.168.1.50, type: shelly_em, phase: c }
 
   # 1-phasiger Verbraucher an L2, Shelly Plus 1PM
   - name: Spülmaschine
@@ -24,18 +24,18 @@ devices:
     phase: L2
     serial: "SPM0000002"
     channels:
-      - { host: 192.168.1.51, type: switch, id: 0 }
+      - { host: 192.168.1.51, type: shelly_switch, id: 0 }
 
   # 3 Kanäle aus verschiedenen Geräten, eigener Port
   - name: Werkstatt
     port: 1502
     unit_id: 1
     channels:
-      - { host: 192.168.1.60, type: em1, id: 0 }        # Pro EM-50 Kanal 1
-      - { host: 192.168.1.60, type: em1, id: 1 }        # Pro EM-50 Kanal 2
-      - { host: 192.168.1.61, type: pm1, id: 0 }        # Shelly Plus PM Mini
-      # - { host: 192.168.1.62, type: gen1_relay, id: 0 }  # Shelly 1PM Gen1
-      # - { host: 192.168.1.63, type: gen1_emeter, id: 0, invert: true }  # Shelly EM Gen1
+      - { host: 192.168.1.60, type: shelly_em1, id: 0 }        # Pro EM-50 Kanal 1
+      - { host: 192.168.1.60, type: shelly_em1, id: 1 }        # Pro EM-50 Kanal 2
+      - { host: 192.168.1.61, type: shelly_pm1, id: 0 }        # Shelly Plus PM Mini
+      # - { host: 192.168.1.62, type: shelly_gen1_relay, id: 0 }  # Shelly 1PM Gen1
+      # - { host: 192.168.1.63, type: shelly_gen1_emeter, id: 0, invert: true }  # Shelly EM Gen1
 
   # go-e Wallbox, dreiphasig (lokale HTTP-API v2 in der go-e App aktivieren)
   - name: Wallbox

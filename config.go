@@ -42,13 +42,14 @@ type DeviceConfig struct {
 
 type ChannelConfig struct {
 	Host string `yaml:"host"`
-	// switch | pm1 | em1 | em | gen1_relay | gen1_emeter | goe
+	// shelly_switch | shelly_pm1 | shelly_em1 | shelly_em | shelly_gen1_relay | shelly_gen1_emeter | goe
+	// (ohne "shelly_"-Präfix weiterhin gültig)
 	Type string `yaml:"type"`
 	ID   int    `yaml:"id"`
 	// Phase der Quelle (a|b|c, 1|2|3 oder L1|L2|L3):
-	// Pflicht bei type=em, optional bei type=goe (ohne Angabe: Summe aller Phasen).
+	// Pflicht bei type=shelly_em, optional bei type=goe (ohne Angabe: Summe aller Phasen).
 	SourcePhase string `yaml:"phase"`
-	// Veralteter Alias für phase bei type=em.
+	// Veralteter Alias für phase bei type=shelly_em.
 	EMPhase string `yaml:"em_phase"`
 	// Vorzeichen umdrehen (Bezug <-> Einspeisung)
 	Invert bool `yaml:"invert"`
@@ -60,7 +61,14 @@ type ChannelConfig struct {
 }
 
 var validTypes = map[string]bool{
-	"switch": true, "pm1": true, "em1": true, "em": true, "gen1_relay": true, "gen1_emeter": true, "goe": true,
+	"shelly_switch": true, "shelly_pm1": true, "shelly_em1": true, "shelly_em": true,
+	"shelly_gen1_relay": true, "shelly_gen1_emeter": true, "goe": true,
+}
+
+// Typnamen aus v0.1/v0.2 ohne Herstellerpräfix bleiben gültig.
+var typeAliases = map[string]string{
+	"switch": "shelly_switch", "pm1": "shelly_pm1", "em1": "shelly_em1", "em": "shelly_em",
+	"gen1_relay": "shelly_gen1_relay", "gen1_emeter": "shelly_gen1_emeter",
 }
 
 func parsePhase(s string) (int, bool) {
@@ -161,6 +169,9 @@ func (c *Config) applyDefaults() error {
 				return fmt.Errorf("device %q channel %d: host fehlt", d.Name, j+1)
 			}
 			ch.Type = strings.ToLower(ch.Type)
+			if t, ok := typeAliases[ch.Type]; ok {
+				ch.Type = t
+			}
 			if !validTypes[ch.Type] {
 				return fmt.Errorf("device %q channel %d: unbekannter type %q", d.Name, j+1, ch.Type)
 			}
@@ -172,8 +183,8 @@ func (c *Config) applyDefaults() error {
 				return fmt.Errorf("device %q channel %d: ungültige phase %q", d.Name, j+1, ch.SourcePhase)
 			}
 			ch.phaseIdx = idx
-			if ch.Type == "em" && idx < 0 {
-				return fmt.Errorf("device %q channel %d: type em braucht phase a|b|c", d.Name, j+1)
+			if ch.Type == "shelly_em" && idx < 0 {
+				return fmt.Errorf("device %q channel %d: type shelly_em braucht phase a|b|c", d.Name, j+1)
 			}
 		}
 

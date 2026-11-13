@@ -72,9 +72,9 @@ func readChannel(ctx context.Context, f *fetcher, ch *ChannelConfig) (Reading, e
 	var r Reading
 
 	switch ch.Type {
-	case "switch", "pm1":
+	case "shelly_switch", "shelly_pm1":
 		method := "Switch"
-		if ch.Type == "pm1" {
+		if ch.Type == "shelly_pm1" {
 			method = "PM1"
 		}
 		s, err := f.get(ctx, fmt.Sprintf("%s/rpc/%s.GetStatus?id=%d", base, method, ch.ID))
@@ -93,7 +93,7 @@ func readChannel(ctx context.Context, f *fetcher, ch *ChannelConfig) (Reading, e
 		r.ImportWh, _ = num(sub(s, "aenergy"), "total")
 		r.ExportWh, r.HasExport = num(sub(s, "ret_aenergy"), "total")
 
-	case "em1":
+	case "shelly_em1":
 		s, err := f.get(ctx, fmt.Sprintf("%s/rpc/EM1.GetStatus?id=%d", base, ch.ID))
 		if err != nil {
 			return r, err
@@ -110,7 +110,7 @@ func readChannel(ctx context.Context, f *fetcher, ch *ChannelConfig) (Reading, e
 		r.ImportWh, _ = num(e, "total_act_energy")
 		r.ExportWh, r.HasExport = num(e, "total_act_ret_energy")
 
-	case "em":
+	case "shelly_em":
 		s, err := f.get(ctx, fmt.Sprintf("%s/rpc/EM.GetStatus?id=%d", base, ch.ID))
 		if err != nil {
 			return r, err
@@ -128,7 +128,7 @@ func readChannel(ctx context.Context, f *fetcher, ch *ChannelConfig) (Reading, e
 		r.ImportWh, _ = num(e, p+"total_act_energy")
 		r.ExportWh, r.HasExport = num(e, p+"total_act_ret_energy")
 
-	case "gen1_relay":
+	case "shelly_gen1_relay":
 		s, err := f.get(ctx, base+"/status")
 		if err != nil {
 			return r, err
@@ -141,7 +141,7 @@ func readChannel(ctx context.Context, f *fetcher, ch *ChannelConfig) (Reading, e
 		total, _ := num(m, "total") // Wattminuten
 		r.ImportWh = total / 60
 
-	case "gen1_emeter":
+	case "shelly_gen1_emeter":
 		s, err := f.get(ctx, base+"/status")
 		if err != nil {
 			return r, err

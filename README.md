@@ -81,18 +81,21 @@ Vollständiges Beispiel: [config.example.yaml](config.example.yaml). Umgebungsva
 | `host`     | IP oder Hostname des Geräts (optional mit `:port`)               |
 | `type`     | siehe Tabelle unten                                              |
 | `id`       | Kanal-/Komponenten-ID am Shelly (Default `0`)                    |
-| `phase`    | Phase an der Quelle: `a`/`b`/`c`, `1`/`2`/`3` oder `L1`/`L2`/`L3`. Pflicht bei `em`, optional bei `goe` (`em_phase` geht weiterhin) |
+| `phase`    | Phase an der Quelle: `a`/`b`/`c`, `1`/`2`/`3` oder `L1`/`L2`/`L3`. Pflicht bei `shelly_em`, optional bei `goe` (`em_phase` geht weiterhin) |
 | `invert`   | Vorzeichen umkehren (Bezug ↔ Einspeisung)                        |
 
-| `type`        | Geräte (Beispiele)                         | Abfrage                                |
-|---------------|--------------------------------------------|----------------------------------------|
-| `switch`      | Plus/Pro 1PM, 2PM, 4PM, Plug S (Gen2+)     | `Switch.GetStatus`                     |
-| `pm1`         | Plus PM Mini (Gen2+)                       | `PM1.GetStatus`                        |
-| `em1`         | Pro EM-50, Pro 3EM (Profil Monophase)      | `EM1.GetStatus`, `EM1Data.GetStatus`   |
-| `em`          | Pro 3EM (Profil Triphase)                  | `EM.GetStatus`, `EMData.GetStatus`     |
-| `gen1_relay`  | Shelly 1PM, 2.5, Plug (Gen1)               | `/status` → `meters[id]`               |
-| `gen1_emeter` | Shelly EM, 3EM (Gen1)                      | `/status` → `emeters[id]`              |
-| `goe`         | go-eCharger V3/V4 (Gemini, HOME)           | `/api/status?filter=nrg,eto`           |
+| `type`               | Geräte (Beispiele)                       | Abfrage                              |
+|----------------------|------------------------------------------|--------------------------------------|
+| `shelly_switch`      | Plus/Pro 1PM, 2PM, 4PM, Plug S (Gen2+)   | `Switch.GetStatus`                   |
+| `shelly_pm1`         | Plus PM Mini, PM Mini Gen3               | `PM1.GetStatus`                      |
+| `shelly_em1`         | Pro EM-50, Pro 3EM (Profil Monophase)    | `EM1.GetStatus`, `EM1Data.GetStatus` |
+| `shelly_em`          | Pro 3EM (Profil Triphase)                | `EM.GetStatus`, `EMData.GetStatus`   |
+| `shelly_gen1_relay`  | Shelly 1PM, 2.5, Plug (Gen1)             | `/status` → `meters[id]`             |
+| `shelly_gen1_emeter` | Shelly EM, 3EM (Gen1)                    | `/status` → `emeters[id]`            |
+| `goe`                | go-eCharger V3/V4 (Gemini, HOME)         | `/api/status?filter=nrg,eto`         |
+
+Die Shelly-Typnamen entsprechen den Komponenten der Shelly-API. Die Namen ohne `shelly_`-Präfix aus
+v0.1/v0.2 (`switch`, `pm1`, `em1`, `em`, `gen1_relay`, `gen1_emeter`) funktionieren weiterhin.
 
 Positive Leistung bedeutet Verbrauch. Geräte mit aktivierter Authentifizierung werden derzeit nicht
 unterstützt.
