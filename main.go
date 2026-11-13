@@ -20,6 +20,7 @@ var version = "dev"
 
 func main() {
 	cfgPath := flag.String("config", envOr("CONFIG", "/config/config.yaml"), "Pfad zur YAML-Config")
+	deviceFilter := flag.String("devices", os.Getenv("DEVICES"), "nur diese Geräte bedienen: Namen oder unit_ids, kommagetrennt (Default: alle)")
 	healthcheck := flag.Bool("healthcheck", false, "/healthz des laufenden Prozesses prüfen (für Docker HEALTHCHECK)")
 	showVersion := flag.Bool("version", false, "Version ausgeben")
 	flag.Parse()
@@ -42,6 +43,10 @@ func main() {
 	cfg, err := LoadConfig(*cfgPath)
 	if err != nil {
 		slog.Error("Config ungültig", "err", err)
+		os.Exit(1)
+	}
+	if err := cfg.FilterDevices(*deviceFilter); err != nil {
+		slog.Error("Gerätefilter ungültig", "err", err)
 		os.Exit(1)
 	}
 

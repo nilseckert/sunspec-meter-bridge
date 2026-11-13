@@ -142,10 +142,10 @@ Der Wechselrichter akzeptiert **pro IP-Adresse nur einen virtuellen Zähler**, a
 (502/1502) oder Modbus-Adresse unterscheiden. Für mehrere Zähler läuft deshalb je eine Instanz mit eigener LAN-IP,
 z. B. per macvlan: siehe [compose.macvlan.yaml](compose.macvlan.yaml).
 
-Alle Instanzen können **dieselbe Config mit allen Zählern** laden. Jede Instanz antwortet auf alle
-Modbus-Adressen; im Wechselrichter wird pro IP die Adresse des gewünschten Zählers eingetragen
-(z. B. IP .40 → Adresse 10, IP .41 → Adresse 11). Dank `poll_mode: on_demand` fragt jede Instanz nur
-die Geräte ab, die bei ihr angefragt werden – Shellys und Wallboxen werden nicht mehrfach abgefragt.
+Alle Instanzen können **dieselbe Config mit allen Zählern** laden. Mit der Umgebungsvariable
+`DEVICES` (Namen oder `unit_id`s, kommagetrennt, z. B. `DEVICES: Wärmepumpe`) bedient eine Instanz nur
+diese Zähler – andere werden weder abgefragt noch beantwortet. Ohne `DEVICES` antwortet jede Instanz
+auf alle Modbus-Adressen und fragt dank `poll_mode: on_demand` nur die tatsächlich angefragten Geräte ab.
 Jede Instanz braucht ein eigenes Datenverzeichnis für die Zählerstände. Als Port sind im Wechselrichter nur 502
 und 1502 wählbar. Die Modbus-Adressen 1–3 können am RTU-Bus des Wechselrichters bereits belegt sein;
 höhere Adressen (z. B. ab 11) vermeiden Konflikte.

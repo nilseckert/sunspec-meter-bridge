@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -219,5 +220,38 @@ func (c *Config) applyDefaults() error {
 			}
 		}
 	}
+	return nil
+}
+
+// FilterDevices beschränkt die Config auf die angegebenen Geräte (Name oder
+// unit_id, kommagetrennt). Leer = alle Geräte. So können mehrere Instanzen
+// dieselbe Config nutzen und jeweils nur ihre Zähler bedienen und abfragen.
+func (c *Config) FilterDevices(spec string) error {
+	if strings.TrimSpace(spec) == "" {
+		return nil
+	}
+	var keep []*DeviceConfig
+	for _, tok := range strings.Split(spec, ",") {
+		tok = strings.TrimSpace(tok)
+		if tok == "" {
+			continue
+		}
+		found := false
+		for _, d := range c.Devices {
+			if strings.EqualFold(d.Name, tok) || fmt.Sprint(d.UnitID) == tok {
+				found = true
+				if !slices.Contains(keep, d) {
+					keep = append(keep, d)
+				}
+			}
+		}
+		if !found {
+			return fmt.Errorf("DEVICES: kein Gerät mit Name oder unit_id %q", tok)
+		}
+	}
+	if len(keep) == 0 {
+		return fmt.Errorf("DEVICES: keine Geräte ausgewählt")
+	}
+	c.Devices = keep
 	return nil
 }
