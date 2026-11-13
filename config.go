@@ -22,8 +22,13 @@ type Config struct {
 	// Datei für die Zählerstände (leer = keine Persistenz).
 	StateFile string `yaml:"state_file"`
 	// Wie oft die Zählerstände geschrieben werden (zusätzlich beim Beenden).
-	StateInterval time.Duration   `yaml:"state_interval"`
-	Devices       []*DeviceConfig `yaml:"devices"`
+	StateInterval time.Duration `yaml:"state_interval"`
+	// on_demand (Default): nur Geräte abfragen, die per Modbus angefragt werden.
+	// always: alle Geräte ständig abfragen.
+	PollMode string `yaml:"poll_mode"`
+	// on_demand: so lange nach der letzten Modbus-Anfrage wird ein Gerät weiter abgefragt.
+	IdleAfter time.Duration   `yaml:"idle_after"`
+	Devices   []*DeviceConfig `yaml:"devices"`
 }
 
 type DeviceConfig struct {
@@ -114,6 +119,17 @@ func (c *Config) applyDefaults() error {
 	}
 	if c.StateInterval == 0 {
 		c.StateInterval = time.Minute
+	}
+	c.PollMode = strings.ToLower(c.PollMode)
+	switch c.PollMode {
+	case "":
+		c.PollMode = "on_demand"
+	case "on_demand", "always":
+	default:
+		return fmt.Errorf("poll_mode muss on_demand oder always sein")
+	}
+	if c.IdleAfter == 0 {
+		c.IdleAfter = 5 * time.Minute
 	}
 	if len(c.Devices) == 0 {
 		return fmt.Errorf("keine devices konfiguriert")

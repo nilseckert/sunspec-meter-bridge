@@ -21,6 +21,8 @@ type ModbusServer struct {
 	port       int
 	devices    map[uint8]*Device
 	staleAfter time.Duration
+	// optional: Polling auf Bedarf
+	poller *Poller
 }
 
 func (s *ModbusServer) Serve(ln net.Listener) error {
@@ -91,6 +93,11 @@ func (s *ModbusServer) process(unit byte, pdu []byte, log *slog.Logger) []byte {
 		count := binary.BigEndian.Uint16(pdu[3:5])
 		if count == 0 || count > 125 {
 			return exception(fc, exIllegalValue)
+		}
+		if s.poller != nil {
+			s.poller.Touch(dev, s.staleAfter)
+			// erste Anfrage nach Leerlauf: kurz auf die angestoßene Abfrage warten
+			s.poller.WaitFresh(dev, s.staleAfter, 2*time.Second)
 		}
 		if dev.Age() > s.staleAfter {
 			return exception(fc, exGatewayNoTarget)

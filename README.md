@@ -60,6 +60,8 @@ Vollständiges Beispiel: [config.example.yaml](config.example.yaml). Umgebungsva
 | `stale_after`    | `30s`   | Ältere Messwerte → Modbus-Exception 0x0B                                  |
 | `state_file`     | leer    | JSON-Datei für die Zählerstände, z. B. `/data/state.json` (leer = aus)    |
 | `state_interval` | `1m`    | Speicherintervall der Zählerstände (zusätzlich beim Beenden)              |
+| `poll_mode`      | `on_demand` | `on_demand`: nur Geräte abfragen, die per Modbus angefragt werden; `always`: alle |
+| `idle_after`     | `5m`    | `on_demand`: so lange nach der letzten Modbus-Anfrage weiter abfragen      |
 
 ### Gerät (`devices[]`)
 
@@ -138,15 +140,20 @@ IP-Adresse haben.
 
 Der Wechselrichter akzeptiert **pro IP-Adresse nur einen virtuellen Zähler**, auch wenn sich Port
 (502/1502) oder Modbus-Adresse unterscheiden. Für mehrere Zähler läuft deshalb je eine Instanz mit eigener LAN-IP,
-z. B. per macvlan: siehe [compose.macvlan.yaml](compose.macvlan.yaml). Jede Instanz bekommt eine eigene
-Config mit genau einem Gerät und ein eigenes Datenverzeichnis. Als Port sind im Wechselrichter nur 502
+z. B. per macvlan: siehe [compose.macvlan.yaml](compose.macvlan.yaml).
+
+Alle Instanzen können **dieselbe Config mit allen Zählern** laden. Jede Instanz antwortet auf alle
+Modbus-Adressen; im Wechselrichter wird pro IP die Adresse des gewünschten Zählers eingetragen
+(z. B. IP .40 → Adresse 10, IP .41 → Adresse 11). Dank `poll_mode: on_demand` fragt jede Instanz nur
+die Geräte ab, die bei ihr angefragt werden – Shellys und Wallboxen werden nicht mehrfach abgefragt.
+Jede Instanz braucht ein eigenes Datenverzeichnis für die Zählerstände. Als Port sind im Wechselrichter nur 502
 und 1502 wählbar. Die Modbus-Adressen 1–3 können am RTU-Bus des Wechselrichters bereits belegt sein;
 höhere Adressen (z. B. ab 11) vermeiden Konflikte.
 
 ## Betrieb
 
 - **Logs:** `LOG_LEVEL=debug` zeigt Modbus-Zugriffe und jede Shelly-Abfrage.
-- **Health:** `GET :8080/healthz` liefert 200, solange alle Zähler aktuelle Werte haben
+- **Health:** `GET :8080/healthz` liefert 200, solange alle angefragten Zähler aktuelle Werte haben (nicht angefragte gelten als `idle`)
   (`HEALTH_ADDR` ändert die Adresse). Das Image enthält einen Docker-`HEALTHCHECK`.
 - **Zählerstände:** werden mit `state_file` atomar gespeichert. Schlüssel ist die `serial` –
   wird sie geändert, beginnt der Zähler wieder beim Stand des Shellys. Das Verzeichnis muss für

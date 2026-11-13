@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -27,6 +28,9 @@ type Device struct {
 	mu      sync.RWMutex
 	regs    []uint16
 	updated time.Time
+
+	// Zeitpunkt der letzten Modbus-Anfrage (UnixNano), für das Polling auf Bedarf
+	lastRequest atomic.Int64
 
 	// Energiezähler dürfen für den Wechselrichter nie rückwärts laufen
 	// (z. B. nach Shelly-Reset). Pro Kanal wird ein Offset geführt.

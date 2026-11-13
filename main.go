@@ -95,7 +95,11 @@ func main() {
 		}
 	}
 
+	poller := NewPoller(devices, cfg.PollMode == "on_demand", cfg.IdleAfter)
+	slog.Info("Polling", "mode", cfg.PollMode, "idle_after", cfg.IdleAfter)
+
 	for port, srv := range servers {
+		srv.poller = poller
 		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 		if err != nil {
 			slog.Error("Listen fehlgeschlagen", "port", port, "err", err)
@@ -111,14 +115,13 @@ func main() {
 		slog.Info("Modbus TCP lauscht", "port", port)
 	}
 
-	go serveHealth(ctx, devices, cfg.StaleAfter)
+	go serveHealth(ctx, devices, cfg.StaleAfter, poller)
 
 	client := &http.Client{Timeout: cfg.HTTPTimeout}
-	ticker := time.NewTicker(cfg.PollInterval)
-	defer ticker.Stop()
+	go poller.Run(ctx, client, cfg.PollInterval)
+
 	stateTicker := time.NewTicker(cfg.StateInterval)
 	defer stateTicker.Stop()
-	poll(ctx, client, devices)
 	for {
 		select {
 		case <-ctx.Done():
@@ -127,8 +130,6 @@ func main() {
 			return
 		case <-stateTicker.C:
 			saveState()
-		case <-ticker.C:
-			poll(ctx, client, devices)
 		}
 	}
 }
@@ -168,17 +169,20 @@ func poll(ctx context.Context, client *http.Client, devices []*Device) {
 	wg.Wait()
 }
 
-// /healthz: 200 wenn alle Geräte aktuelle Werte haben.
-func serveHealth(ctx context.Context, devices []*Device, staleAfter time.Duration) {
+// /healthz: 200 wenn alle aktiv abgefragten Geräte aktuelle Werte haben.
+// Nicht angefragte Geräte (on_demand) gelten als "idle" und sind kein Fehler.
+func serveHealth(ctx context.Context, devices []*Device, staleAfter time.Duration, poller *Poller) {
 	addr := envOr("HEALTH_ADDR", ":8080")
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		ok := true
 		var b strings.Builder
 		for _, d := range devices {
-			age := d.Age()
 			state := "ok"
-			if age > staleAfter {
+			switch {
+			case !poller.Active(d):
+				state = "idle"
+			case d.Age() > staleAfter:
 				state, ok = "stale", false
 			}
 			fmt.Fprintf(&b, "%s: %s\n", d.cfg.Name, state)

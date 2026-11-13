@@ -1,6 +1,10 @@
 # Vorlage für mehrere Zähler: Fronius-Wechselrichter akzeptieren pro IP-Adresse nur
 # einen virtuellen Zähler. Daher eine Instanz pro Zähler mit eigener LAN-IP (macvlan).
 #
+# Alle Instanzen laden dieselbe config.yaml mit allen Zählern und antworten auf jede
+# Modbus-Adresse. Im Wechselrichter pro IP die Adresse des gewünschten Zählers eintragen.
+# Mit poll_mode: on_demand (Default) fragt jede Instanz nur die bei ihr angefragten Geräte ab.
+#
 # Anpassen: parent (Netzwerkinterface des Hosts), subnet, gateway, ip_range und IPs.
 # Die IPs müssen außerhalb des DHCP-Bereichs liegen.
 # Hinweis: Der Docker-Host selbst erreicht macvlan-IPs nicht, das übrige LAN schon.
@@ -14,23 +18,21 @@ x-meter: &meter
     LOG_LEVEL: info
 
 services:
-  waermepumpe:
+  meter-40:                       # Fronius: 192.168.178.40, Modbus-Adresse 10
     <<: *meter
-    container_name: smb-waermepumpe
     volumes:
-      - ./config/waermepumpe.yaml:/config/config.yaml:ro   # je Datei genau ein Gerät
-      - ./data/waermepumpe:/data
+      - ./config.yaml:/config/config.yaml:ro
+      - ./data/meter-40:/data     # Zählerstände je Instanz getrennt
+    networks:
+      lan: { ipv4_address: 192.168.178.40 }
+
+  meter-41:                       # Fronius: 192.168.178.41, Modbus-Adresse 11
+    <<: *meter
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - ./data/meter-41:/data
     networks:
       lan: { ipv4_address: 192.168.178.41 }
-
-  wallbox:
-    <<: *meter
-    container_name: smb-wallbox
-    volumes:
-      - ./config/wallbox.yaml:/config/config.yaml:ro
-      - ./data/wallbox:/data
-    networks:
-      lan: { ipv4_address: 192.168.178.42 }
 
 networks:
   lan:
