@@ -1,0 +1,90 @@
+name: build
+
+# Tag (beliebiger Name, z. B. v1.2.0) -> :<tag> und :latest
+# Branch feature/<name>               -> :feature_<name>
+# main / Pull Requests                -> nur Tests + Build, kein Push
+on:
+  push:
+    branches: ["main", "feature/**"]
+    tags: ["*"]
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image-Tags bestimmen
+        id: meta
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          # Docker-Tags erlauben nur [A-Za-z0-9_.-], max. 128 Zeichen
+          sanitize() { echo -n "$1" | tr -c 'A-Za-z0-9_.-' '-' | cut -c1-128; }
+          push=false
+          version="${GITHUB_SHA::7}"
+          tags="${image}:ci"
+          case "$GITHUB_REF" in
+            refs/tags/*)
+              version="$(sanitize "$GITHUB_REF_NAME")"
+              tags="${image}:${version},${image}:latest"
+              push=true
+              ;;
+            refs/heads/feature/*)
+              name="$(sanitize "${GITHUB_REF_NAME#feature/}")"
+              version="feature_${name}-${GITHUB_SHA::7}"
+              tags="${image}:$(echo -n "feature_${name}" | cut -c1-128)"
+              push=true
+              ;;
+          esac
+          {
+            echo "tags=${tags}"
+            echo "push=${push}"
+            echo "version=${version}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Tags: ${tags} (push=${push})"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login GHCR
+        if: steps.meta.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: ${{ steps.meta.outputs.push == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: VERSION=${{ steps.meta.outputs.version }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

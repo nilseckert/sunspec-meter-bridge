@@ -1,0 +1,38 @@
+# Standard-Modbus-Port für alle Geräte ohne eigenen "port"
+listen_port: 502
+poll_interval: 2s
+http_timeout: 2s
+# Älter als das → Modbus-Exception statt eingefrorener Werte
+stale_after: 30s
+# Zählerstände persistent speichern (Volume nötig), leer = aus
+state_file: /data/state.json
+state_interval: 1m
+
+devices:
+  # 3-phasiger Verbraucher, gemessen mit einem Shelly Pro 3EM (Triphase-Profil)
+  - name: Wärmepumpe
+    unit_id: 1
+    serial: "WP0000001"          # muss je Gerät eindeutig sein (Solar.web)
+    channels:
+      - { host: 192.168.1.50, type: em, em_phase: a }
+      - { host: 192.168.1.50, type: em, em_phase: b }
+      - { host: 192.168.1.50, type: em, em_phase: c }
+
+  # 1-phasiger Verbraucher an L2, Shelly Plus 1PM
+  - name: Spülmaschine
+    unit_id: 2
+    phase: L2
+    serial: "SPM0000002"
+    channels:
+      - { host: 192.168.1.51, type: switch, id: 0 }
+
+  # 3 Kanäle aus verschiedenen Geräten, eigener Port
+  - name: Werkstatt
+    port: 1502
+    unit_id: 1
+    channels:
+      - { host: 192.168.1.60, type: em1, id: 0 }        # Pro EM-50 Kanal 1
+      - { host: 192.168.1.60, type: em1, id: 1 }        # Pro EM-50 Kanal 2
+      - { host: 192.168.1.61, type: pm1, id: 0 }        # Shelly Plus PM Mini
+      # - { host: 192.168.1.62, type: gen1_relay, id: 0 }  # Shelly 1PM Gen1
+      # - { host: 192.168.1.63, type: gen1_emeter, id: 0, invert: true }  # Shelly EM Gen1

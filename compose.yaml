@@ -1,0 +1,20 @@
+# Vorlage: config.example.yaml nach config.yaml kopieren und anpassen, dann
+#   docker compose up -d
+services:
+  shelly-fronius-meter:
+    image: ghcr.io/nilseckert/shelly-fronius-meter:latest
+    container_name: shelly-fronius-meter
+    restart: unless-stopped
+    ports:
+      - "502:502"    # Modbus TCP – vom Fronius-Wechselrichter aus erreichbar machen
+      # - "1502:1502"  # weitere Ports, falls Geräte eigene "port"-Werte haben
+      - "8080:8080"  # /healthz
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - data:/data   # Zählerstände (state_file: /data/state.json)
+    environment:
+      TZ: Europe/Berlin
+      LOG_LEVEL: info  # debug für Details zu Modbus- und Shelly-Abfragen
+
+volumes:
+  data:
