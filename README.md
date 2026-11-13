@@ -22,7 +22,7 @@ Shelly / go-e (HTTP) ──► sunspec-meter-bridge ──► Modbus TCP :502 �
 - go-eCharger V3/V4 (Gemini, HOME) über die lokale HTTP-API v2, ein- oder dreiphasig
 - Leistung, Spannung, Strom, Leistungsfaktor, Frequenz sowie Energiezähler Bezug/Einspeisung
 - Zählerstände laufen nie rückwärts (Shelly-Reset/-Tausch) und werden persistent gespeichert
-- Mehrere Zähler auf einem Port (Unterscheidung per Modbus-Adresse) oder auf eigenen Ports
+- Mehrere Zähler pro Instanz (per Modbus-Adresse oder Port); Fronius braucht allerdings eine IP je Zähler, siehe [unten](#mehrere-zähler-eine-ip-pro-zähler)
 - Bei veralteten Messwerten antwortet der Zähler mit einer Modbus-Exception statt alte Werte zu liefern
 - Kleines Multi-Arch-Image (amd64, arm64, arm/v7), läuft als Non-Root, mit Healthcheck
 
