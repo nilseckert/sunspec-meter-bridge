@@ -153,7 +153,7 @@ func poll(ctx context.Context, client *http.Client, devices []*Device) {
 			cwg.Wait()
 			for _, err := range errs {
 				if err != nil {
-					slog.Warn("Shelly-Abfrage fehlgeschlagen", "device", d.cfg.Name, "err", err)
+					slog.Warn("Abfrage fehlgeschlagen", "device", d.cfg.Name, "err", err)
 					return
 				}
 			}
